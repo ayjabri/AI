@@ -87,3 +87,5 @@ def gen_equal_length_cat_col(df, column, n_bins):
     return tmp
 
 
+
+def rmse()

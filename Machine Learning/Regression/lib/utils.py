@@ -88,4 +88,14 @@ def gen_equal_length_cat_col(df, column, n_bins):
 
 
 
-def rmse()
+def mse(y,y_hat):
+    """Mean Squared Error (MSE): gives higher weights to large errors"""
+    return np.mean((y-y_hat)**2)
+
+def rmse(y, y_hat):
+    return np.sqrt(mse(y,y_hat))
+
+
+def mae(y, y_hat):
+    """Mean Absolute Error is less sensitive to outliers and comparable to prediction units (USD, %..etc)"""
+    return np.mean(abs(y-y_hat))

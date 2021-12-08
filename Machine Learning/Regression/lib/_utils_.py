@@ -17,6 +17,10 @@ import numpy as np
 from zlib import crc32
 from hashlib import md5
 
+
+# =============================================================================
+# Functions to fetch data from a repository
+# =============================================================================
 def fetch_online_zip_file(URL, filename, as_frame=True, overwrite=False):
     """Download a zipped file from the internet and extract it in current folder"""
     if (not os.path.exists(filename) or overwrite):
@@ -30,12 +34,16 @@ def fetch_online_zip_file(URL, filename, as_frame=True, overwrite=False):
     pass
 
 
-
-def hash_and_split(df, test_size):
+# =============================================================================
+# Functions to split DataFrame
+# =============================================================================
+def hash_and_split(df, test_size, stratify=None):
     """
-    Split data into reproducable train and test set.
-    It hashes each record then calculates it's CRC32 integer to assign an all times unique value
-    then it uses this value to split the data. 
+    Splits the Frame into a reproducable train and test sets.
+    
+    It does that by: first hashes each row using MD5, then calculates the result's CRC32. 
+    CRC32 is an integer in the range [2**0, 2**32] that is unique for each row. This is then used
+    to split the data propotional to the required test_size.
 
     Parameters
     ----------
@@ -43,7 +51,9 @@ def hash_and_split(df, test_size):
         The DataFrame we need to split.
     *test_size : float
         Should be between 0.0 and 1.0 and represents the propotion of the data to include in the test set.
-
+    stratify : str
+        Column name that contains the categories to stratify the split with. Default=None
+        The column dtype should be a Category.
     Returns
     -------
     split : tuple, length=2
@@ -51,6 +61,8 @@ def hash_and_split(df, test_size):
 
     """
     dh = df.apply(lambda x: bytes(md5(x.to_string().encode()).hexdigest().encode()), axis=1).apply(crc32)
+    if stratify is not None:
+        dh[stratify] = df[stratify].copy()
     test_idx = dh[dh < test_size * 2**32].index
     train_idx = dh[dh > test_size * 2**32].index
     return (train_idx, test_idx)
@@ -59,7 +71,7 @@ def hash_and_split(df, test_size):
 
 def gen_equal_length_cat_col(df, column, n_bins):
     """
-    Generates an equal length categorical column from a continuous series in a frame
+    Generates an equal-length categorical column
 
     Parameters
     ----------
@@ -88,6 +100,10 @@ def gen_equal_length_cat_col(df, column, n_bins):
 
 
 
+
+# =============================================================================
+# Measurment Metrics
+# =============================================================================
 def mse(y,y_hat):
     """Mean Squared Error (MSE): gives higher weights to large errors"""
     return np.mean((y-y_hat)**2)

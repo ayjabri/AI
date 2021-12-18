@@ -8,5 +8,12 @@ Created on Wed Dec  8 09:26:16 2021
 
 from sklearn.impute import SimpleImputer
 
+from numpy.linalg import inv, det
+from sklearn.preprocessing import StandardScaler, Binarizer
 
-imp = SimpleImputer(strategy='median')
+
+from datetime import datetime
+
+
+now = datetime.now()
+

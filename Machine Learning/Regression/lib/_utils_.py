@@ -13,6 +13,7 @@ import tarfile
 import pandas as pd
 import numpy as np
 
+from sklearn.base import BaseEstimator, TransformerMixin
 
 from zlib import crc32
 from hashlib import md5
@@ -60,6 +61,7 @@ def hash_and_split(df, test_size, stratify=None):
         A tuple that contains train and test Pandas indexes
 
     """
+    
     dh = df.apply(lambda x: bytes(md5(x.to_string().encode()).hexdigest().encode()), axis=1).apply(crc32)
     if stratify is not None:
         dh[stratify] = df[stratify].copy()
@@ -68,11 +70,53 @@ def hash_and_split(df, test_size, stratify=None):
     return (train_idx, test_idx)
 
 
+def hash_one(r,w_hash=False):
+    """Return the crc32 value of a single entry with the option to hash it using md5"""
+    r = ''.join(r).encode()
+    if w_hash:
+        r = md5(r).hexdigest()
+        r = bytes(r, encoding='utf-8')
+    return crc32(r) & 0xffffffff
+
+def hash_dataframe(df, columns=None, w_hash=False):
+    """
+    Return crc32 of pandas dataframe
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe.
+    columns : list|str, optional
+        A column name or list of column names to operate on. The default is None.
+    w_hash : bool, optional
+        Hash each row using md5 before calculating crc32. The default is False.
+
+    Returns
+    -------
+    results : ndarray
+        An 1D array contains crc32 values. Has the same length as 
+        the input DataFrame.
+
+    """
+    n = len(df)
+    if columns is not None:
+        tmp = df[columns].copy()
+    else:
+        tmp = df.copy()
+    results = np.empty(n, dtype=np.int64)
+    x = tmp.astype(str).values
+    for i in range(n):
+        results[i] = hash_one(x[i], w_hash)
+    return results
+
 
 def gen_equal_length_cat_col(df, column, n_bins):
     """
     Generates an equal-length categorical column
-
+    
+    Note: this function does exactly what Pandas.qcut function does.
+        I wrote it before I knew there's a similar function out there
+    
     Parameters
     ----------
     *df : DataFrame
@@ -100,6 +144,24 @@ def gen_equal_length_cat_col(df, column, n_bins):
 
 
 
+# =============================================================================
+# Preprocessing - adding attributes
+# =============================================================================
+
+class NumericTransforms(BaseEstimator, TransformerMixin):
+    def __init__(self, exp):
+        super().__init__()
+        self.exp = exp
+    def fit(self,X, y=None):
+        return self
+    def transform(self, X, y=None):
+        orig_columns = X.columns
+        results = X.eval(self.exp)
+        if isinstance(results, pd.core.series.Series):
+            return results.to_numpy().reshape(-1,1)
+        new_columns = results.columns.difference(orig_columns)
+        return results[new_columns].to_numpy()
+    
 
 # =============================================================================
 # Measurment Metrics
